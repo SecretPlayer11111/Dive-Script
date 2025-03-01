@@ -1,0 +1,191 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Secret 4.2 script hub",
+   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
+   LoadingTitle = "Secret 4.2 script hub",
+   LoadingSubtitle = "by SecretPlayer",
+   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false, -- Prevents Rayfield from warning when the script has a version mismatch with the interface
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil, -- Create a custom folder for your hub/game
+      FileName = "Secret 4.2 Script Hub"
+   },
+
+   Discord = {
+      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
+      Invite = "noinvitelink", -- The Discord invite code, do not include discord.gg/. E.g. discord.gg/ ABCD would be ABCD
+      RememberJoins = true -- Set this to false to make them join the discord every time they load it up
+   },
+
+   KeySystem = true, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "4.2 Scripts",
+      Subtitle = "Key System",
+      Note = "You will get the key once u buy it from discord", -- Use this to tell the user how to get a key
+      FileName = "Key", -- It is recommended to use something unique as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = true, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"https://pastebin.com/raw/A25hsrTF"} -- List of keys that will be accepted by the system, can be RAW file links (pastebin, github etc) or simple strings ("hello","key22")
+   }
+})
+
+local MainTab = Window:CreateTab("Dive Script", nil) -- Title, Image
+local MainSection = MainTab:CreateSection("Main")
+
+local Toggle = MainTab:CreateToggle({
+   Name = "Dive Script",
+   CurrentValue = false,
+   Flag = "Toggle1", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+        repeat wait() until workspace:FindFirstChild("Ball")
+
+-- Constants
+local UserInputService = game:GetService("UserInputService")
+local VirtualInputManager = game:GetService("VirtualInputManager")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+
+-- Marker
+local Marker = Instance.new("Part")
+Marker.Name = "Marker"
+Marker.Size = Vector3.new(2, 2, 2)
+Marker.Shape = Enum.PartType.Ball
+Marker.BrickColor = BrickColor.new("Bright violet")
+Marker.CanCollide = false
+Marker.Anchored = true
+Marker.Parent = workspace
+Marker.Transparency = 1
+Marker.Material = Enum.Material.Neon
+
+-- Beams storage
+local Beams = {}
+
+-- Function to get player torso height
+local function getPlayerTorsoHeight()
+    local character = Players.LocalPlayer and Players.LocalPlayer.Character
+    if character then
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            return humanoid.HipHeight * 2 -- Approximate torso height
+        end
+    end
+    return 2 -- Default height if player not found
+end
+
+-- Function to rotate the player's torso towards the target position
+local function rotateTorsoTowards(targetPosition)
+    local player = Players.LocalPlayer
+    if not player or not player.Character then return end
+
+    local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+
+    -- Get direction to face the target
+    local direction = (targetPosition - humanoidRootPart.Position).unit
+    local newCFrame = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + direction)
+
+    -- Apply rotation
+    humanoidRootPart.CFrame = newCFrame
+end
+
+-- Function to find the closest beam to the player
+local function getClosestBeam()
+    local player = Players.LocalPlayer
+    if not player or not player.Character then return nil end
+
+    local humanoidRootPart = player.Character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return nil end
+
+    local closestBeam = nil
+    local minDistance = math.huge
+
+    for _, beam in pairs(Beams) do
+        local distance = (humanoidRootPart.Position - beam.Position).Magnitude
+        if distance < minDistance then
+            minDistance = distance
+            closestBeam = beam
+        end
+    end
+
+    -- Skip turning if the beam is directly under the player
+    if closestBeam and math.abs(closestBeam.Position.X - humanoidRootPart.Position.X) < 1 and math.abs(closestBeam.Position.Z - humanoidRootPart.Position.Z) < 1 then
+        return nil
+    end
+    
+    return closestBeam
+end
+
+-- Physics function
+local function PHYSICS_STUFF(velocity, position)
+    local acceleration = -workspace.Gravity
+    local timeToLand = (-velocity.y - math.sqrt(velocity.y * velocity.y - 4 * 0.5 * acceleration * position.y)) / (2 * 0.5 * acceleration)
+    local horizontalVelocity = Vector3.new(velocity.x, 0, velocity.z)
+    local landingPosition = position + horizontalVelocity * timeToLand + Vector3.new(0, -position.y, 0)
+    return landingPosition
+end
+
+-- Key Input Handling
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.Nine then
+        -- ✅ Press Shift
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.LeftShift, false, game)
+        task.wait(0.002) -- Small delay to ensure Shift is registered
+
+        -- ✅ Rotate torso towards the closest beam (if not under player)
+        local closestBeam = getClosestBeam()
+        if closestBeam then
+            rotateTorsoTowards(closestBeam.Position)
+        end
+
+        task.wait(0.003) -- Wait 3ms
+
+        -- ✅ Press 3
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Three, false, game)
+    end
+end)
+
+-- Construct
+RunService:BindToRenderStep("VisualizeLandingPosition", Enum.RenderPriority.Camera.Value, function()
+    Marker.Transparency = 0.5
+
+    -- Clear previous beams
+    for _, beam in pairs(Beams) do
+        if beam and beam.Parent then
+            beam:Destroy()
+        end
+    end
+    Beams = {}
+
+    for _, ballModel in ipairs(workspace:GetChildren()) do
+        if ballModel:IsA("Model") and ballModel.Name == "Ball" then
+            local ball = ballModel:FindFirstChild("BallPart")
+            if ball then
+                local initialVelocity = ballModel.Velocity
+                local landingPosition = PHYSICS_STUFF(initialVelocity.Value, ball.Position)
+                Marker.CFrame = CFrame.new(landingPosition)
+
+                -- Create a new Beam Part for each ball
+                local BeamPart = Instance.new("Part")
+                BeamPart.Name = "Beam"
+                BeamPart.Size = Vector3.new(0.5, getPlayerTorsoHeight(), 0.5)
+                BeamPart.BrickColor = BrickColor.new("Bright blue")
+                BeamPart.CanCollide = false
+                BeamPart.Anchored = true
+                BeamPart.Parent = workspace
+                BeamPart.Material = Enum.Material.Neon
+                BeamPart.Transparency = 1 -- Make beam invisible
+                BeamPart.CFrame = CFrame.new(landingPosition + Vector3.new(0, BeamPart.Size.Y / 2, 0))
+
+                table.insert(Beams, BeamPart) -- Store the beam
+            end
+        end
+    end
+end)
+
+   end,
+})
